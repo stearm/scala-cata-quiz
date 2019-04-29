@@ -1,3 +1,4 @@
+import cats.Semigroupal
 import cats.effect.IO
 
 import scala.io.Source
@@ -23,19 +24,17 @@ object QuizIO extends App {
     content.foldLeft(true)((valid, line) => line.split(",").length == 2 && valid)
 
   def performQuiz(content: List[String]): IO[Unit] = {
-    val correctAnswers: IO[TotalQuestions] = content.foldLeft(IO(0))((correctAnswers, c) => {
+    val correctAnswers: IO[TotalQuestions] = content.foldLeft(IO(0))((caIO, c) => {
       val parsed: Array[String] = c.split(",")
       val question: String = parsed(0)
       val correctAnswer: String = parsed(1)
-
       val answerIO: IO[String] = readLn(s"$question = ")
 
       for {
-        ca <- correctAnswers
-        answer <- answerIO
-        counter <- answer == correctAnswer match {
-          case true => IO(ca + 1)
-          case false => IO(ca)
+        correctAndUserInput <- Semigroupal[IO].product(caIO, answerIO)
+        counter <- correctAndUserInput._2 == correctAnswer match {
+          case true => IO(correctAndUserInput._1 + 1)
+          case false => IO(correctAndUserInput._1)
         }
       } yield counter
     })
